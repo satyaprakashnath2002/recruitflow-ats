@@ -71,6 +71,6 @@ export function DashboardPage() {
   </>;
 }
 
-function QuickLink({ href, icon, title, detail }: { href: string; icon: "briefcase" | "file" | "calendar" | "bell"; title: string; detail: string }) {
+export function QuickLink({ href, icon, title, detail }: { href: string; icon: "briefcase" | "file" | "calendar" | "bell"; title: string; detail: string }) {
   return <Link className="quick-link" href={href}><span className="quick-icon"><Icon name={icon}/></span><span><strong>{title}</strong><small>{detail}</small></span><Icon name="chevron" size={15}/></Link>;
 }
