@@ -11,6 +11,17 @@ const blank = {
   required_skills: "", qualifications: "", vacancies: "1", application_deadline: "",
 };
 
+function companyToday() {
+  const parts = new Intl.DateTimeFormat("en", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const values = Object.fromEntries(parts.map(({ type, value }) => [type, value]));
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
 export function JobForm({ initial, onSaved, onCancel }: { initial?: Job; onSaved: (job: Job) => void; onCancel?: () => void }) {
   const [form, setForm] = useState(() => initial ? {
     title: initial.title, department: initial.department, employment_type: initial.employment_type,
@@ -23,17 +34,37 @@ export function JobForm({ initial, onSaved, onCancel }: { initial?: Job; onSaved
   const [busy, setBusy] = useState(false); const [error, setError] = useState(""); const toast = useToast();
   const set = (key: keyof typeof blank, value: string) => setForm((current) => ({ ...current, [key]: value }));
   const submit = async (event: FormEvent) => {
-    event.preventDefault(); setBusy(true); setError("");
+    event.preventDefault(); setError("");
     const number = (value: string) => value === "" ? null : Number(value);
+    const required: Array<[string, string]> = [
+      ["Job title", form.title], ["Department", form.department], ["Employment type", form.employment_type],
+      ["Location", form.location], ["Work mode", form.work_mode], ["Description", form.description],
+    ];
+    const missing = required.find(([, value]) => !value.trim());
+    if (missing) { setError(`${missing[0]} is required.`); return; }
+    const minExperience = number(form.min_experience);
+    const maxExperience = number(form.max_experience);
+    const minSalary = number(form.salary_min);
+    const maxSalary = number(form.salary_max);
+    if (minExperience !== null && maxExperience !== null && minExperience > maxExperience) {
+      setError("Minimum experience cannot exceed maximum experience."); return;
+    }
+    if (minSalary !== null && maxSalary !== null && minSalary > maxSalary) {
+      setError("Minimum salary cannot exceed maximum salary."); return;
+    }
+    if (form.application_deadline && form.application_deadline <= companyToday()) {
+      setError("Application deadline must be a future date in Asia/Kolkata."); return;
+    }
     const payload = {
-      title: form.title, department: form.department, employment_type: form.employment_type,
-      location: form.location, work_mode: form.work_mode, description: form.description,
-      vacancies: Number(form.vacancies), min_experience: number(form.min_experience), max_experience: number(form.max_experience),
-      salary_min: number(form.salary_min), salary_max: number(form.salary_max),
+      title: form.title.trim(), department: form.department.trim(), employment_type: form.employment_type.trim(),
+      location: form.location.trim(), work_mode: form.work_mode.trim(), description: form.description.trim(),
+      vacancies: Number(form.vacancies), min_experience: minExperience, max_experience: maxExperience,
+      salary_min: minSalary, salary_max: maxSalary,
       required_skills: form.required_skills.split("\n").map((value) => value.trim()).filter(Boolean),
       qualifications: form.qualifications.split("\n").map((value) => value.trim()).filter(Boolean),
       application_deadline: form.application_deadline || null,
     };
+    setBusy(true);
     try {
       const job = initial
         ? await api<Job>(`/jobs/${initial.id}`, { method: "PATCH", body: jsonBody(payload) })

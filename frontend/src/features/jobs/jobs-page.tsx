@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { queryString, useRemote } from "@/lib/use-remote";
@@ -16,6 +16,11 @@ export function JobsPage() {
   const query = queryString({ search, status: status === "all" ? undefined : status, page, page_size: 20, sort_by: "updated_at", order: "desc" });
   const resource = useRemote(() => api<Page<Job>>(`/jobs?${query}`), [query]);
   const canManage = employee?.role === "admin" || employee?.role === "hr_manager";
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (canManage && params.get("create") === "true") setCreateOpen(true);
+    if (params.has("create")) window.history.replaceState(null, "", "/jobs");
+  }, [canManage]);
   return <>
     <PageHeader eyebrow="Recruitment" title="Jobs" description={employee?.role === "recruiter" ? "Positions assigned to you. Job details are read-only." : "Create roles, keep hiring teams aligned, and manage the approved job lifecycle."} action={canManage ? <Button onClick={() => setCreateOpen(true)}><Icon name="plus" size={16}/>Create job</Button> : undefined}/>
     <Card><div className="toolbar"><Field label="Search titles" className="field-search"><TextInput aria-label="Search job titles" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} placeholder="Search job titles…"/></Field><Field label="Status"><SelectInput value={status} onChange={(event) => { setStatus(event.target.value); setPage(1); }}>{statuses.map((item) => <option key={item} value={item}>{item === "all" ? "All statuses" : item}</option>)}</SelectInput></Field><span className="toolbar-spacer"/><span className="result-count">{resource.data?.total ?? 0} jobs</span></div>
