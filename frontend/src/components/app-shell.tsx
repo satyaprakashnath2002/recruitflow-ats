@@ -12,7 +12,7 @@ type NavItem = { href: string; label: string; icon: "grid" | "users" | "briefcas
 const allRoles: EmployeeRole[] = ["admin", "hr_manager", "recruiter", "interviewer"];
 const managerRoles: EmployeeRole[] = ["admin", "hr_manager"];
 const navItems: NavItem[] = [
-  { href: "/dashboard", label: "Overview", icon: "grid", roles: allRoles },
+  { href: "/dashboard", label: "Dashboard", icon: "grid", roles: allRoles },
   { href: "/employees", label: "Employees", icon: "users", roles: ["admin"] },
   { href: "/jobs", label: "Jobs", icon: "briefcase", roles: ["admin", "hr_manager", "recruiter"] },
   { href: "/candidates", label: "Candidates", icon: "users", roles: managerRoles },
@@ -48,6 +48,15 @@ export function WorkspaceShell({ children }: { children: React.ReactNode }) {
     return () => { alive = false; window.clearInterval(timer); };
   }, [employee]);
 
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMobileOpen(false);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [mobileOpen]);
+
   if (!ready || !employee) return <div className="app-frame"><LoadingState label="Restoring your secure session"/></div>;
   const visibleNav = navItems.filter((item) => item.roles.includes(employee.role));
   const title = visibleNav.find((item) => pathname === item.href || pathname.startsWith(`${item.href}/`))?.label ?? "RecruitFlow";
@@ -61,14 +70,17 @@ export function WorkspaceShell({ children }: { children: React.ReactNode }) {
       </Link>
       <nav className="sidebar-nav" aria-label="Main navigation">
         <span className="nav-section-label">Workspace</span>
-        {visibleNav.map((item) => <Link key={item.href} href={item.href} onClick={() => setMobileOpen(false)} className={`nav-link ${pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(`${item.href}/`)) ? "active" : ""}`}>
+        {visibleNav.map((item) => {
+          const active = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(`${item.href}/`));
+          return <Link key={item.href} href={item.href} title={collapsed ? item.label : undefined} aria-current={active ? "page" : undefined} onClick={() => setMobileOpen(false)} className={`nav-link ${active ? "active" : ""}`}>
           <span className="nav-icon"><Icon name={item.icon}/></span><span>{item.label}</span>{item.href === "/notifications" && unread > 0 && <span className="nav-count">{unread > 99 ? "99+" : unread}</span>}
-        </Link>)}
-        <a className="nav-link" href="/careers" target="_blank" rel="noreferrer"><span className="nav-icon"><Icon name="external"/></span><span>Public careers</span></a>
+        </Link>;
+        })}
+        <a className="nav-link" title={collapsed ? "Public careers" : undefined} href="/careers" target="_blank" rel="noreferrer"><span className="nav-icon"><Icon name="external"/></span><span>Public careers</span></a>
       </nav>
       <div className="sidebar-bottom">
         <div className="sidebar-profile"><span className="avatar">{initials(employee.full_name || employee.email)}</span><span className="profile-copy"><strong>{employee.full_name || employee.email}</strong><span>{employee.role.replaceAll("_", " ")}</span></span></div>
-        <button className="nav-link" onClick={() => void logout()}><span className="nav-icon"><Icon name="logout"/></span><span>Sign out</span></button>
+        <button className="nav-link" title={collapsed ? "Sign out" : undefined} onClick={() => void logout()}><span className="nav-icon"><Icon name="logout"/></span><span>Sign out</span></button>
       </div>
     </aside>
     <div className={`workspace ${collapsed ? "workspace-collapsed" : ""}`}>
@@ -76,7 +88,7 @@ export function WorkspaceShell({ children }: { children: React.ReactNode }) {
         <IconButton className="mobile-menu" label="Open navigation" icon="menu" onClick={() => setMobileOpen(true)}/>
         <IconButton className="collapse-button" label={collapsed ? "Expand navigation" : "Collapse navigation"} icon="menu" onClick={() => setCollapsed((value) => !value)}/>
         <div className="topbar-title"><div className="breadcrumbs">RecruitFlow <span aria-hidden="true">/</span> <strong>{title}</strong></div><div className="topbar-heading">{title}</div></div>
-        <div className="topbar-actions"><Link className="topbar-notification" href="/notifications" aria-label={`Notifications${unread ? `, ${unread} unread` : ""}`}><Icon name="bell"/><span className="notification-count">{unread > 9 ? "9+" : unread}</span></Link><span className="topbar-avatar" title={employee.full_name || employee.email}>{initials(employee.full_name || employee.email)}</span></div>
+        <div className="topbar-actions"><Link className="topbar-notification" href="/notifications" aria-label={`Notifications${unread ? `, ${unread} unread` : ""}`}><Icon name="bell"/>{unread > 0 && <span className="notification-count">{unread > 9 ? "9+" : unread}</span>}</Link><span className="topbar-avatar" title={`${employee.full_name || employee.email} · ${employee.role.replaceAll("_", " ")}`} aria-label={`Signed in as ${employee.full_name || employee.email}`}>{initials(employee.full_name || employee.email)}</span></div>
       </header>
       <main className="content">{children}</main>
     </div>

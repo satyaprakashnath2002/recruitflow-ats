@@ -42,7 +42,16 @@ function messageFrom(payload: unknown): { message: string; code?: string } {
     if (error && typeof error === "object") {
       const message = typeof error.message === "string" ? error.message : "Request failed";
       const code = typeof error.status === "string" ? error.status : undefined;
-      return { message, code };
+      const details = Array.isArray(error.details)
+        ? error.details.slice(0, 4).map((item) => {
+            if (!item || typeof item !== "object") return "";
+            const detail = item as Record<string, unknown>;
+            const location = Array.isArray(detail.loc) ? detail.loc.filter((part) => part !== "body").join(".") : "";
+            const reason = typeof detail.msg === "string" ? detail.msg : "Invalid value";
+            return location ? `${location}: ${reason}` : reason;
+          }).filter(Boolean)
+        : [];
+      return { message: details.length ? `${message} — ${details.join("; ")}` : message, code };
     }
   }
   return { message: "Request failed" };

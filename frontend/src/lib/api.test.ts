@@ -37,4 +37,9 @@ describe("frontend API helpers", () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ detail: "Invalid transition" }), { status: 400, headers: { "Content-Type": "application/json" } })));
     await expect(api("/applications/example/stage", { method: "POST", body: JSON.stringify({ stage: "hired" }) })).rejects.toMatchObject({ message: "Invalid transition", status: 400 });
   });
+
+  it("shows FastAPI validation locations and reasons", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ error: { status: "error", message: "Invalid request", details: [{ loc: ["body", "application_deadline"], msg: "Application deadline must be a future date" }] } }), { status: 422, headers: { "Content-Type": "application/json" } })));
+    await expect(api("/jobs", { method: "POST", body: JSON.stringify({ application_deadline: "2026-11-19" }) })).rejects.toMatchObject({ message: "Invalid request — application_deadline: Application deadline must be a future date", status: 422 });
+  });
 });
